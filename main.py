@@ -1,0 +1,221 @@
+import asyncio
+import enum
+import logging
+import shutil
+import signal
+from argparse import ArgumentParser
+from enum import StrEnum
+from pathlib import Path
+
+import pyvts
+import yaml
+from pydantic import BaseModel, Field
+from simpleobsws import IdentificationParameters, WebSocketClient
+
+OBS_EVENT_SCENES = 1 << 2
+CONFIG_PATH = "config.yml"
+DEFAULT_CONFIG_PATH = "config.default.yml"
+
+pyvts.config.plugin_default["plugin_name"] = "OBS-to-VTS"
+pyvts.config.plugin_default["developer"] = "Tina"
+
+API_CONNECTION_INFO = pyvts.config.vts_api.copy()
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+file_handler = logging.FileHandler("log.txt")
+file_handler.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+)
+console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+for handler in (file_handler, console_handler):
+    logger.addHandler(handler)
+
+
+class HotKey(BaseModel):
+    class Type(StrEnum):
+        # by default, TriggerAnimation -> "triggeranimation"
+        # change to TriggerAnimation -> "TriggerAnimation"
+        def _generate_next_value_(name, start, count, last_values):
+            return name
+
+        TriggerAnimation = enum.auto()
+        ToggleExpression = enum.auto()
+        RemoveAllExpressions = enum.auto()
+        MoveModel = enum.auto()
+
+        def __repr__(self):
+            return f"{self.__class__.__name__}.{self.name}"
+
+    name: str
+    type: Type
+    description: str
+    file: str
+    id: str = Field(alias="hotkeyID")
+    keys: list = Field(alias="keyCombination")
+    button_id: int = Field(alias="onScreenButtonID")
+
+
+async def get_hotkeys(vts_plugin: pyvts.vts) -> dict[str, HotKey]:
+    response_data = await vts_plugin.request(
+        vts_plugin.vts_request.requestHotKeyList()
+    )
+    hotkeys_by_name = {
+        item.name: item
+        for item in (
+            HotKey(**item) for item in response_data["data"]["availableHotkeys"]
+        )
+    }
+    return hotkeys_by_name
+
+
+async def trigger_hotkey(vts_plugin: pyvts.vts, hotkey_name: str):
+    hotkeys_by_name = await get_hotkeys(vts_plugin)
+    hotkey = hotkeys_by_name.get(hotkey_name)
+    if not hotkey:
+        logger.warning(f"Hotkey '{hotkey_name}' not found.")
+        return
+    logger.info(f"Triggering hotkey: {hotkey.name}")
+    await vts_plugin.request(
+        vts_plugin.vts_request.requestTriggerHotKey(hotkeyID=hotkey.id)
+    )
+
+
+async def init_vts(host: str, port: int) -> pyvts.vts:
+    vts_plugin = pyvts.vts()
+    pyvts.config.vts_api["host"] = host
+    pyvts.config.vts_api["port"] = port
+    await vts_plugin.connect()
+    await vts_plugin.request_authenticate_token()
+    await vts_plugin.request_authenticate()
+    return vts_plugin
+
+
+async def init_obs(host: str, port: int, password: str) -> WebSocketClient:
+    obs_client = WebSocketClient(
+        url=f"ws://{host}:{port}",
+        password=password,
+        identification_parameters=IdentificationParameters(
+            eventSubscriptions=OBS_EVENT_SCENES
+        ),
+    )
+    await obs_client.connect()
+    await obs_client.wait_until_identified()
+    return obs_client
+
+
+def create_switchscenes_handler(vts_plugin: pyvts.vts, config: Config):
+    async def on_switchscenes(event):
+        if event["eventType"] != "CurrentProgramSceneChanged":
+            return
+        scene_name = event["eventData"]["sceneName"]
+        logger.info(f"OBS switched to scene: {scene_name}")
+        hotkey = config.scenes_to_hotkeys.get(scene_name, config.default_hotkey)
+        if not hotkey:
+            logger.info(f"No hotkey mapped for scene '{scene_name}', skipping.")
+            return
+        await trigger_hotkey(vts_plugin, hotkey)
+
+    return on_switchscenes
+
+
+class Config(BaseModel):
+    class OBS(BaseModel):
+        address: str = "localhost"
+        port: int = 4455
+        password: str | None = None
+
+    class VTS(BaseModel):
+        address: str = "localhost"
+        port: int = 8001
+
+    obs: OBS
+    vts: VTS
+    scenes_to_hotkeys: dict[str, str]
+    default_hotkey: str | None
+
+
+def get_config() -> Config:
+    config_path = Path("config.yml")
+    if not config_path.exists():
+        logger.info("Config file not found, creating default config.yml")
+        default_config_path = Path("config.default.yml")
+        if not default_config_path.exists():
+            raise FileNotFoundError(
+                "Default config file not found. Please create config.yml manually."
+            )
+        shutil.copy(default_config_path, config_path)
+
+    with config_path.open("r") as f:
+        data = yaml.safe_load(f)
+    return Config(**data)
+
+
+async def main():
+    config = get_config()
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--vts-host",
+        type=str,
+        default=config.vts.address or API_CONNECTION_INFO["host"],
+        help="VTube Studio host",
+    )
+    parser.add_argument(
+        "--vts-port",
+        type=int,
+        default=config.vts.port or API_CONNECTION_INFO["port"],
+        help="VTube Studio port",
+    )
+    parser.add_argument(
+        "--obs-host",
+        type=str,
+        default=config.obs.address or "localhost",
+        help="OBS WebSocket host",
+    )
+    parser.add_argument(
+        "--obs-port",
+        type=int,
+        default=config.obs.port or 4455,
+        help="OBS WebSocket port",
+    )
+    parser.add_argument(
+        "--obs-password",
+        type=str,
+        default=config.obs.password or None,
+        help="OBS WebSocket password",
+    )
+    args = parser.parse_args()
+
+    vts_plugin = await init_vts(args.vts_host, args.vts_port)
+    obs_client = await init_obs(args.obs_host, args.obs_port, args.obs_password)
+    logger.info(
+        "Available Hotkeys: %s",
+        [x.name for x in (await get_hotkeys(vts_plugin)).values()],
+    )
+    logger.info("Triggering default hotkey")
+    await trigger_hotkey(vts_plugin, config.default_hotkey)
+    on_switchscenes = create_switchscenes_handler(vts_plugin, config)
+    obs_client.register_event_callback(on_switchscenes)
+
+    async def shutdown():
+        await vts_plugin.close()
+        await obs_client.disconnect()
+        loop.stop()
+
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, lambda: asyncio.create_task(shutdown()))
+
+    await asyncio.Future()
+
+
+if __name__ == "__main__":
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(main())
+    finally:
+        loop.close()

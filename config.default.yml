@@ -1,0 +1,19 @@
+obs:
+  address: "localhost"
+  port: 4455
+  password: null
+
+vts:
+  address: "localhost"
+  port: 8001
+
+scenes_to_hotkeys:
+  "Scene": "My Animation 1"
+  "Scene 2": "My Animation 2"
+  "Scene 3": "My Animation 3"
+
+# Hotkey to trigger when no scene match is found
+# Set to null to disable changing the animation in that case
+# Not recommended, it's best to have a default animation
+default_hotkey: "My Animation 1"
+# default_hotkey: null

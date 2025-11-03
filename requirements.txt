@@ -1,0 +1,4 @@
+simpleobsws
+pydantic
+pyvts
+pyyaml
