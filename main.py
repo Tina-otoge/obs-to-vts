@@ -67,7 +67,7 @@ class HotKey(BaseModel):
 class Config(BaseModel):
     class OBS(BaseModel):
         address: str = "localhost"
-        port: int = 4455
+        port: int = 4444
         password: str | None = None
 
     class VTS(BaseModel):
