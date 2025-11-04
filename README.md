@@ -2,6 +2,8 @@
 
 Maps OBS Studio scenes to VTube Studio hotkeys.
 
+https://github.com/user-attachments/assets/56b0d6f5-cd87-416e-b2fb-0e8799dc6adb
+
 ## Motivation
 
 Playing around with VTube Studio, I wanted different zoom levels on my model
