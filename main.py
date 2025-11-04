@@ -90,7 +90,17 @@ async def init_vts(host: str, port: int) -> pyvts.vts:
     pyvts.config.vts_api["port"] = port
     await vts_plugin.connect()
     await vts_plugin.request_authenticate_token()
-    await vts_plugin.request_authenticate()
+    tried_resetting_token = False
+    while not (await vts_plugin.request_authenticate()):
+        if tried_resetting_token:
+            logger.error("Failed to authenticate with VTube Studio API.")
+            sys.exit(1)
+        logger.warning(
+            "Authentication with VTube Studio API failed, resetting token and"
+            " retrying..."
+        )
+        await vts_plugin.request_authenticate_token(force=True)
+        tried_resetting_token = True
     return vts_plugin
 
 
