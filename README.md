@@ -33,6 +33,9 @@ is your own imagination!
   triggers AFTER the transition, and `SceneTransitionStarted` which does not
   give any info about the next scene.
 
+  See https://github.com/obsproject/obs-websocket/issues/983 and
+  https://github.com/obsproject/obs-websocket/pull/1229 for more details.
+
 ## Usage
 
 Make sure VTube Studio is open and that the "*Start API (allow plugins)*" option
