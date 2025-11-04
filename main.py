@@ -68,7 +68,7 @@ class Config(BaseModel):
     class OBS(BaseModel):
         address: str = "localhost"
         port: int = 4444
-        password: str | None = None
+        password: str | None = Field(coerce_numbers_to_str=True, default=None)
 
     class VTS(BaseModel):
         address: str = "localhost"
