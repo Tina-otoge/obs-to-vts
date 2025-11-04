@@ -3,14 +3,19 @@ import enum
 import logging
 import shutil
 import signal
+import sys
 from argparse import ArgumentParser
 from enum import StrEnum
 from pathlib import Path
 
 import pyvts
+
+# OBS WS 5
+# from simpleobsws import IdentificationParameters, WebSocketClient
+# OBS WS 4
+import simpleobsws
 import yaml
 from pydantic import BaseModel, Field
-from simpleobsws import IdentificationParameters, WebSocketClient
 
 OBS_EVENT_SCENES = 1 << 2
 CONFIG_PATH = "config.yml"
@@ -59,6 +64,24 @@ class HotKey(BaseModel):
     button_id: int = Field(alias="onScreenButtonID")
 
 
+class Config(BaseModel):
+    class OBS(BaseModel):
+        address: str = "localhost"
+        port: int = 4455
+        password: str | None = None
+
+    class VTS(BaseModel):
+        address: str = "localhost"
+        port: int = 8001
+
+    obs: OBS
+    vts: VTS
+    transition_delay_ms: int = 0
+    transition_delay_half: bool = False
+    scenes_to_hotkeys: dict[str, str]
+    default_hotkey: str | None
+
+
 async def get_hotkeys(vts_plugin: pyvts.vts) -> dict[str, HotKey]:
     response_data = await vts_plugin.request(
         vts_plugin.vts_request.requestHotKeyList()
@@ -104,48 +127,72 @@ async def init_vts(host: str, port: int) -> pyvts.vts:
     return vts_plugin
 
 
-async def init_obs(host: str, port: int, password: str) -> WebSocketClient:
-    obs_client = WebSocketClient(
-        url=f"ws://{host}:{port}",
-        password=password,
-        identification_parameters=IdentificationParameters(
-            eventSubscriptions=OBS_EVENT_SCENES
-        ),
-    )
+# OBS WS 5
+# async def init_obs(host: str, port: int, password: str) -> WebSocketClient:
+#     obs_client = WebSocketClient(
+#         url=f"ws://{host}:{port}",
+#         password=password,
+#         identification_parameters=IdentificationParameters(
+#             eventSubscriptions=OBS_EVENT_SCENES
+#         ),
+#     )
+#     await obs_client.connect()
+#     await obs_client.wait_until_identified()
+#     return obs_client
+
+
+# OBS WS 4
+async def init_obs(host: str, port: int, password: str):
+    obs_client = simpleobsws.obsws(host=host, port=port, password=password)
     await obs_client.connect()
-    await obs_client.wait_until_identified()
     return obs_client
 
 
 def create_switchscenes_handler(vts_plugin: pyvts.vts, config: Config):
+    # OBS WS 5
+    # async def on_switchscenes(event):
+    #     if event["eventType"] != "CurrentProgramSceneChanged":
+    #         return
+    #     scene_name = event["eventData"]["sceneName"]
+    #     logger.info(f"OBS switched to scene: {scene_name}")
+    #     hotkey = config.scenes_to_hotkeys.get(scene_name, config.default_hotkey)
+    #     if not hotkey:
+    #         logger.info(f"No hotkey mapped for scene '{scene_name}', skipping.")
+    #         return
+    #     await trigger_hotkey(vts_plugin, hotkey)
+
+    # OBS WS 4 SwitchScenes
+    # async def on_switchscenes(event):
+    #     print(event)
+    #     scene_name = event["scene-name"]
+    #     logger.info(f"OBS switched to scene: {scene_name}")
+    #     hotkey = config.scenes_to_hotkeys.get(scene_name, config.default_hotkey)
+    #     if not hotkey:
+    #         logger.info(f"No hotkey mapped for scene '{scene_name}', skipping.")
+    #         return
+    #     await trigger_hotkey(vts_plugin, hotkey)
+
+    # OBS WS 4 TransitionBegin
     async def on_switchscenes(event):
-        if event["eventType"] != "CurrentProgramSceneChanged":
-            return
-        scene_name = event["eventData"]["sceneName"]
+        print(event)
+        scene_name = event["to-scene"]
         logger.info(f"OBS switched to scene: {scene_name}")
         hotkey = config.scenes_to_hotkeys.get(scene_name, config.default_hotkey)
         if not hotkey:
             logger.info(f"No hotkey mapped for scene '{scene_name}', skipping.")
             return
-        await trigger_hotkey(vts_plugin, hotkey)
+
+        async def exec_after_delay():
+            if config.transition_delay_half:
+                delay = event["duration"] / 2
+            else:
+                delay = config.transition_delay_ms
+            await asyncio.sleep(delay / 1000)
+            await trigger_hotkey(vts_plugin, hotkey)
+
+        asyncio.create_task(exec_after_delay())
 
     return on_switchscenes
-
-
-class Config(BaseModel):
-    class OBS(BaseModel):
-        address: str = "localhost"
-        port: int = 4455
-        password: str | None = None
-
-    class VTS(BaseModel):
-        address: str = "localhost"
-        port: int = 8001
-
-    obs: OBS
-    vts: VTS
-    scenes_to_hotkeys: dict[str, str]
-    default_hotkey: str | None
 
 
 def get_config() -> Config:
@@ -208,7 +255,12 @@ async def main():
     logger.info("Triggering default hotkey")
     await trigger_hotkey(vts_plugin, config.default_hotkey)
     on_switchscenes = create_switchscenes_handler(vts_plugin, config)
-    obs_client.register_event_callback(on_switchscenes)
+    # OBS WS 5
+    # obs_client.register_event_callback(on_switchscenes)
+    # OBS WS 4 SwitchScenes
+    # obs_client.register(on_switchscenes, "SwitchScenes")
+    # OBS WS 4 TransitionBegin
+    obs_client.register(on_switchscenes, "TransitionBegin")
 
     async def shutdown():
         await vts_plugin.close()
@@ -216,8 +268,11 @@ async def main():
         loop.stop()
 
     loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, lambda: asyncio.create_task(shutdown()))
+    if sys.platform != "win32":
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(
+                sig, lambda: asyncio.create_task(shutdown())
+            )
 
     await asyncio.Future()
 
