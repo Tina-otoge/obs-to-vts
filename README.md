@@ -29,7 +29,7 @@ limit is your own imagination!
 
   https://github.com/obsproject/obs-websocket/releases
 
-  This plugin relays on the `TransitionBegin` event from OBS WebSocket protocol
+  This plugin relies on the `TransitionBegin` event from OBS WebSocket protocol
   4, which allows us to know what scene we are changing into as soon as you
   click on it. WebSocket protocol 5 has `CurrentProgramSceneChanged` which only
   triggers AFTER the transition, and `SceneTransitionStarted` which does not
