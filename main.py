@@ -174,7 +174,7 @@ def create_switchscenes_handler(vts_plugin: pyvts.vts, config: Config):
 
     # OBS WS 4 TransitionBegin
     async def on_switchscenes(event):
-        print(event)
+        logger.info(f"Received OBS event: {event}")
         scene_name = event["to-scene"]
         logger.info(f"OBS switched to scene: {scene_name}")
         hotkey = config.scenes_to_hotkeys.get(scene_name, config.default_hotkey)
