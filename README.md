@@ -8,10 +8,10 @@ Playing around with VTube Studio, I wanted different zoom levels on my model
 depending on the OBS scene I'm using. If you simply change your character's zoom
 from OBS directly, the resolution will be very bad. It's better to zoom in VTube
 Studio instead. Using this script, you can automate hotkeys when you change OBS
-scenes, and thus automatically changing zoom levels in VTube Studio for example.
+scenes, and thus automatically changing zoom levels in VTube Studio is now easy.
 
-Of course, you can also use this to trigger any kind of hotkey, the only limit
-is your own imagination!
+Of course, you can also use this to trigger any kind of VTS hotkey, the only
+limit is your own imagination!
 
 ## Requirements
 
