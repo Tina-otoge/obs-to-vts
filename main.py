@@ -1,7 +1,8 @@
 import asyncio
+import contextlib
 import enum
+import io
 import logging
-import shutil
 import signal
 import sys
 from argparse import ArgumentParser
@@ -116,12 +117,21 @@ async def init_vts(host: str, port: int) -> pyvts.vts:
     vts_plugin = pyvts.vts()
     pyvts.config.vts_api["host"] = host
     pyvts.config.vts_api["port"] = port
-    await vts_plugin.connect()
+    logger.info(f"Connecting to VTS at {host}:{port}...")
+    try:
+        await vts_plugin.connect()
+    except OSError as e:
+        logger.error(
+            "Failed to connect to VTube Studio API. Is VTS running and the"
+            " plugin API enabled?"
+        )
+        raise e
     logger.info(
-        "Connecting to VTube Studio... If this is the first time, you may need"
-        "to authorize the application."
+        "Authenticating with VTS... If this is the first time, you may need to"
+        " accept the application from VTube Studio's window."
     )
-    await vts_plugin.request_authenticate_token()
+    with contextlib.redirect_stdout(io.StringIO()):
+        await vts_plugin.request_authenticate_token()
     tried_resetting_token = False
     while not (await vts_plugin.request_authenticate()):
         if tried_resetting_token:
@@ -133,6 +143,7 @@ async def init_vts(host: str, port: int) -> pyvts.vts:
         )
         await vts_plugin.request_authenticate_token(force=True)
         tried_resetting_token = True
+    logger.info("Successfully connected to VTS.")
     return vts_plugin
 
 
@@ -153,8 +164,18 @@ async def init_vts(host: str, port: int) -> pyvts.vts:
 # OBS WS 4
 async def init_obs(host: str, port: int, password: str):
     obs_client = simpleobsws.obsws(host=host, port=port, password=password)
-    logger.info("Connecting to OBS...")
-    await obs_client.connect()
+    logger.info(
+        f"Connecting to OBS at {host}:{port} (password={bool(password)})..."
+    )
+    try:
+        await obs_client.connect()
+    except OSError as e:
+        logger.error(
+            "Failed to connect to OBS. Is OBS running and WebSocket 4.x"
+            " enabled?"
+        )
+        raise e
+    logger.info("Successfully connected to OBS.")
     return obs_client
 
 
@@ -340,6 +361,11 @@ if __name__ == "__main__":
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(main())
-    finally:
-        loop.close()
+        try:
+            loop.run_until_complete(main())
+        except Exception as e:
+            logger.error("Unhandled exception: %s", e)
+            logger.debug("Exception details:", exc_info=True)
+            input("Press Enter to exit...")
+    except KeyboardInterrupt:
+        pass
