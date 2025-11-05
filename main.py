@@ -9,13 +9,13 @@ from enum import StrEnum
 from pathlib import Path
 
 import pyvts
+import yaml
+from pydantic import BaseModel, Field
 
 # OBS WS 5
 # from simpleobsws import IdentificationParameters, WebSocketClient
 # OBS WS 4
 import simpleobsws
-import yaml
-from pydantic import BaseModel, Field
 
 OBS_EVENT_SCENES = 1 << 2
 CONFIG_PATH = "config.yml"
