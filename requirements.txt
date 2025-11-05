@@ -1,4 +1,4 @@
-simpleobsws==0.0.7
+simpleobsws==0.0.7 # Latest version with WebSocket v4 support
 pydantic
 pyvts
 pyyaml
