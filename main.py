@@ -42,8 +42,6 @@ for handler in (file_handler, console_handler):
 
 class HotKey(BaseModel):
     class Type(StrEnum):
-        # by default, TriggerAnimation -> "triggeranimation"
-        # change to TriggerAnimation -> "TriggerAnimation"
         def _generate_next_value_(name, start, count, last_values):
             return name
 
@@ -56,7 +54,11 @@ class HotKey(BaseModel):
             return f"{self.__class__.__name__}.{self.name}"
 
     name: str
-    type: Type
+    # my Type enum is probably not complete, let's not risk a crash
+    # for people with more esoteric hotkeys or if VTS ever add more
+    # in the future
+    # type: Type
+    type: str
     description: str
     file: str
     id: str = Field(alias="hotkeyID")
