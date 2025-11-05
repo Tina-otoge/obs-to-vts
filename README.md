@@ -20,11 +20,6 @@ limit is your own imagination!
 - Windows or Linux, untested on MacOS, but might work. Raise an issue if you
   need MacOS support.
 
-- Python
-
-  Tested with Python 3.12 and 3.14, some older versions may work, please raise
-  an issue if your version is not supported.
-
 - OBS Websockets 4.x.x-compat plugin
 
   https://github.com/obsproject/obs-websocket/releases
@@ -38,11 +33,27 @@ limit is your own imagination!
   See https://github.com/obsproject/obs-websocket/issues/983 and
   https://github.com/obsproject/obs-websocket/pull/1229 for more details.
 
-## Usage
+## Download
 
-Once you have the pre-requisites above installed, [download the latest
-version](https://github.com/Tina-otoge/obs-to-vts/archive/refs/heads/master.zip)
-and extract it anywhere on your computer.
+Windows: [obs-to-vts.exe][direct-dl]
+
+The program will generate config files in its directory, so ideally you'll want
+to create a folder and put the exe inside it before running it.
+
+<details>
+  <summary>Others</summary>
+
+  1. Install Python (tested with Python 3.12 and 3.14 only)
+  2. `python -m venv venv`
+  3. (Windows) `.\venv\Scripts\activate.bat`
+  3. (MacOS / Linux) `source venv/bin/activate`
+  4. `pip install -r requirements.txt`
+
+  Run with: `python main.py`
+
+</details>
+
+## Usage
 
 Make sure VTube Studio is open and that the "*Start API (allow plugins)*" option
 in Settings > General > VTube Studio Plugins is ON.
@@ -50,26 +61,8 @@ in Settings > General > VTube Studio Plugins is ON.
 Make sure OBS Studio is open and that the "*Enable WebSockets server*" in Tools
 \> WebSockets Server Settings (4.x Compat) is ON.
 
-On Windows, you can use the provided `run.bat` to start the program.
-
-<details>
-  <summary>Click here if you want to set up the tool manually instead</summary>
-    
-  If you are not on Windows or wish to install dependencies your own way, use your
-  preferred method to install dependencies from the `requirements.txt` file, and
-  run `main.py`.
-  
-  Example:
-  1. `python -m venv .venv`
-  2. (Windows) `.\venv\Scripts\activate.bat`
-  3. (MacOS / Linux) `source .venv/bin/activate`
-  4. `pip install -r requirements.txt`
-  5. `python main.py`
-
-</details>
-
-Then, create or modify the `config.yml` file to your convenience. When you
-run the script for the first time, this file will be created for you.
+Edit `config.yml` file to your convenience. When you run the tool for the first
+time, this file will be created for you.
 
 The main things you want to look for in this file are the `scenes_to_hotkeys`
 and `default_hotkey` settings. Names are self-explanatory. If your scenes or
@@ -97,11 +90,13 @@ parameters: `--obs-host`, `--obs-port`, `--obs-password`, `--vts-host`, and
 
 There are no automated updates. Please compare the modification date of the file
 on your computer with [the date of the latest
-commit](https://github.com/Tina-otoge/obs-to-vts/commits/master/). If they differ,
-download the latest and release and overwrite your local files. Your config file
-will NOT be deleted by this operation.
+commit](https://github.com/Tina-otoge/obs-to-vts/commits/master/). If they
+differ, download the latest and release and overwrite your local files. Your
+config file will NOT be deleted by this operation.
 
 
 ## License
 
 MIT.
+
+[direct-dl]: https://github.com/Tina-otoge/obs-to-vts/releases/latest/download/obs-to-vts.exe
