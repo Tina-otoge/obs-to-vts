@@ -3,3 +3,6 @@
 /log.txt
 /.venv/
 /venv/
+/build/
+/dist/
+/main.spec

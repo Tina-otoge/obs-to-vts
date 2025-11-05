@@ -12,6 +12,7 @@ import pyvts
 import yaml
 from pydantic import BaseModel, Field
 
+""
 # OBS WS 5
 # from simpleobsws import IdentificationParameters, WebSocketClient
 # OBS WS 4
@@ -19,7 +20,6 @@ import simpleobsws
 
 OBS_EVENT_SCENES = 1 << 2
 CONFIG_PATH = "config.yml"
-DEFAULT_CONFIG_PATH = "config.default.yml"
 
 pyvts.config.plugin_default["plugin_name"] = "OBS-to-VTS"
 pyvts.config.plugin_default["developer"] = "Tina"
@@ -76,12 +76,16 @@ class Config(BaseModel):
         address: str = "localhost"
         port: int = 8001
 
-    obs: OBS
-    vts: VTS
+    obs: OBS = OBS()
+    vts: VTS = VTS()
     transition_delay_ms: int = 0
     transition_delay_half: bool = False
-    scenes_to_hotkeys: dict[str, str]
-    default_hotkey: str | None
+    scenes_to_hotkeys: dict[str, str] = {
+        "Scene": "My Animation 1",
+        "Scene 2": "My Animation 2",
+        "Scene 3": "My Animation 3",
+    }
+    default_hotkey: str | None = "My Animation 1"
 
 
 async def get_hotkeys(vts_plugin: pyvts.vts) -> dict[str, HotKey]:
@@ -113,6 +117,10 @@ async def init_vts(host: str, port: int) -> pyvts.vts:
     pyvts.config.vts_api["host"] = host
     pyvts.config.vts_api["port"] = port
     await vts_plugin.connect()
+    logger.info(
+        "Connecting to VTube Studio... If this is the first time, you may need"
+        "to authorize the application."
+    )
     await vts_plugin.request_authenticate_token()
     tried_resetting_token = False
     while not (await vts_plugin.request_authenticate()):
@@ -145,6 +153,7 @@ async def init_vts(host: str, port: int) -> pyvts.vts:
 # OBS WS 4
 async def init_obs(host: str, port: int, password: str):
     obs_client = simpleobsws.obsws(host=host, port=port, password=password)
+    logger.info("Connecting to OBS...")
     await obs_client.connect()
     return obs_client
 
@@ -198,16 +207,63 @@ def create_switchscenes_handler(vts_plugin: pyvts.vts, config: Config):
     return on_switchscenes
 
 
+def generate_default_config() -> str:
+    default_config = Config()
+    dump = yaml.safe_dump(default_config.model_dump(), sort_keys=False)
+    comments = {
+        "default_hotkey": [
+            "Hotkey to trigger when no scene match is found",
+            "Set to null to disable changing the animation in that case",
+            "Not recommended, it's best to have a default animation.",
+        ],
+        "transition_delay_ms": [
+            "Delay in milliseconds before triggering the hotkey after a"
+            " scene change",
+            "Useful if you want to hide the transition behind a stinger video,"
+            " in this",
+            "case, you probably want to match the value of the"
+            " Transition Point in OBS",
+            "Set to 0 to disable",
+        ],
+        "transition_delay_half": [
+            "Set to true to wait half of the transition delay before triggering"
+            " the hotkey",
+            "This bypasses the transition_delay_ms setting entirely",
+        ],
+    }
+    result = ""
+    for line in dump.splitlines():
+        # Add newline between sections
+        if result and not line.startswith(" "):
+            result += "\n"
+
+        # Add comments if any
+        key = line.split(":", 1)[0]
+        if key in comments:
+            for comment in comments[key]:
+                result += f"# {comment}\n"
+        spaces = line[: len(line) - len(line.lstrip())]
+
+        # Reformat key and value to quote strings with spaces when they span
+        # multiple words
+        pair = line.split(":", 1)
+        for x in (0, 1):
+            pair[x] = pair[x].strip()
+            if " " in pair[x]:
+                pair[x] = f'"{pair[x]}"'
+        key, value = pair
+        result += f"{spaces}{key}: {value}\n"
+
+    return result
+
+
 def get_config() -> Config:
     config_path = Path("config.yml")
     if not config_path.exists():
         logger.info("Config file not found, creating default config.yml")
-        default_config_path = Path("config.default.yml")
-        if not default_config_path.exists():
-            raise FileNotFoundError(
-                "Default config file not found. Please create config.yml manually."
-            )
-        shutil.copy(default_config_path, config_path)
+        default_config = generate_default_config()
+        with config_path.open("w") as f:
+            f.write(default_config)
 
     with config_path.open("r") as f:
         data = yaml.safe_load(f)
@@ -252,7 +308,7 @@ async def main():
     vts_plugin = await init_vts(args.vts_host, args.vts_port)
     obs_client = await init_obs(args.obs_host, args.obs_port, args.obs_password)
     logger.info(
-        "Available Hotkeys: %s",
+        "Available VTS Hotkeys: %s",
         [x.name for x in (await get_hotkeys(vts_plugin)).values()],
     )
     logger.info("Triggering default hotkey")
