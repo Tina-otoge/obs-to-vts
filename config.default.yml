@@ -22,7 +22,7 @@ default_hotkey: "My Animation 1"
 # Useful if you want to hide the transition behind an intermission video for
 # example
 # Set to 0 to disable any delay
-transition_delay_ms: 5000
+transition_delay_ms: 0
 
 # Set to true to wait half of the transition delay before triggering the hotkey
 # This bypasses the transition_delay_ms setting entirely
