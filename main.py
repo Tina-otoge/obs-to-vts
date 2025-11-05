@@ -88,13 +88,12 @@ async def get_hotkeys(vts_plugin: pyvts.vts) -> dict[str, HotKey]:
     response_data = await vts_plugin.request(
         vts_plugin.vts_request.requestHotKeyList()
     )
-    hotkeys_by_name = {
+    return {
         item.name: item
         for item in (
             HotKey(**item) for item in response_data["data"]["availableHotkeys"]
         )
     }
-    return hotkeys_by_name
 
 
 async def trigger_hotkey(vts_plugin: pyvts.vts, hotkey_name: str):
@@ -189,7 +188,9 @@ def create_switchscenes_handler(vts_plugin: pyvts.vts, config: Config):
                 delay = event["duration"] / 2
             else:
                 delay = config.transition_delay_ms
-            await asyncio.sleep(delay / 1000)
+            if delay:
+                logging.info(f"Waiting {delay}ms before firing hotkey...")
+                await asyncio.sleep(delay / 1000)
             await trigger_hotkey(vts_plugin, hotkey)
 
         asyncio.create_task(exec_after_delay())
