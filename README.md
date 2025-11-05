@@ -40,32 +40,41 @@ limit is your own imagination!
 
 ## Usage
 
+Once you have the pre-requisites above installed, [download the latest
+version](https://github.com/Tina-otoge/obs-to-vts/archive/refs/heads/master.zip)
+and extract it anywhere on your computer.
+
 Make sure VTube Studio is open and that the "*Start API (allow plugins)*" option
 in Settings > General > VTube Studio Plugins is ON.
 
 Make sure OBS Studio is open and that the "*Enable WebSockets server*" in Tools
 \> WebSockets Server Settings (4.x Compat) is ON.
 
-On Windows, you can use the provided `run.bat`.
+On Windows, you can use the provided `run.bat` to start the program.
 
-If you are not on Windows or wish to install dependencies your own way, use your
-preferred method to install dependencies from the `requirements.txt` file, and
-run `main.py`.
+<details>
+  <summary>Click here if you want to set up the tool manually instead</summary>
+    
+  If you are not on Windows or wish to install dependencies your own way, use your
+  preferred method to install dependencies from the `requirements.txt` file, and
+  run `main.py`.
+  
+  Example:
+  1. `python -m venv .venv`
+  2. (Windows) `.\venv\Scripts\activate.bat`
+  3. (MacOS / Linux) `source .venv/bin/activate`
+  4. `pip install -r requirements.txt`
+  5. `python main.py`
 
-Example:
-1. `python -m venv .venv`
-2. (Windows) `.\venv\Scripts\activate.bat`
-3. (MacOS / Linux) `source .venv/bin/activate`
-4. `pip install -r requirements.txt`
-5. `python main.py`
+</details>
 
-Then, create or modify the `config.yml` file with your specific setup. When you
+Then, create or modify the `config.yml` file to your convenience. When you
 run the script for the first time, this file will be created for you.
 
 The main things you want to look for in this file are the `scenes_to_hotkeys`
-and `default_hotkey` settings. Names are self-explanatory. If your values have
-spaces or special characters, you MUST enclose them between quote characters, as
-in the provided example.
+and `default_hotkey` settings. Names are self-explanatory. If your scenes or
+hotkeys have spaces or special characters, you MUST enclose them between quote
+characters, as in the provided example.
 
 Setting a default hotkey is highly recommended. Imagine you have Scene A bound
 to hotkey ZoomX2, and Scene B bound to ZoomX5, if you click on Scene C and it is
@@ -83,6 +92,15 @@ OBS and VTS connection settings can also be configured from this file.
 You can also overwrite the connection settings using the following command-line
 parameters: `--obs-host`, `--obs-port`, `--obs-password`, `--vts-host`, and
 `--vts-port`.
+
+## Updating
+
+There are no automated updates. Please compare the modification date of the file
+on your computer with [the date of the latest
+commit](https://github.com/Tina-otoge/obs-to-vts/commits/master/). If they differ,
+download the latest and release and overwrite your local files. Your config file
+will NOT be deleted by this operation.
+
 
 ## License
 
