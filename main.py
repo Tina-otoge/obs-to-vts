@@ -120,7 +120,7 @@ async def init_vts(host: str, port: int) -> pyvts.vts:
     logger.info(f"Connecting to VTS at {host}:{port}...")
     try:
         await vts_plugin.connect()
-    except OSError as e:
+    except Exception as e:
         logger.error(
             "Failed to connect to VTube Studio API. Is VTS running and the"
             " plugin API enabled?"
@@ -130,19 +130,23 @@ async def init_vts(host: str, port: int) -> pyvts.vts:
         "Authenticating with VTS... If this is the first time, you may need to"
         " accept the application from VTube Studio's window."
     )
-    with contextlib.redirect_stdout(io.StringIO()):
-        await vts_plugin.request_authenticate_token()
-    tried_resetting_token = False
-    while not (await vts_plugin.request_authenticate()):
-        if tried_resetting_token:
-            logger.error("Failed to authenticate with VTube Studio API.")
-            sys.exit(1)
-        logger.warning(
-            "Authentication with VTube Studio API failed, resetting token and"
-            " retrying..."
-        )
-        await vts_plugin.request_authenticate_token(force=True)
-        tried_resetting_token = True
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            await vts_plugin.request_authenticate_token()
+        tried_resetting_token = False
+        while not (await vts_plugin.request_authenticate()):
+            if tried_resetting_token:
+                logger.error("Failed to authenticate with VTube Studio API.")
+                sys.exit(1)
+            logger.warning(
+                "Authentication with VTube Studio API failed, resetting token and"
+                " retrying..."
+            )
+            await vts_plugin.request_authenticate_token(force=True)
+            tried_resetting_token = True
+    except Exception as e:
+        logger.error("Failed to authenticate with VTube Studio API.")
+        raise e
     logger.info("Successfully connected to VTS.")
     return vts_plugin
 
@@ -169,7 +173,7 @@ async def init_obs(host: str, port: int, password: str):
     )
     try:
         await obs_client.connect()
-    except OSError as e:
+    except Exception as e:
         logger.error(
             "Failed to connect to OBS. Is OBS running and WebSocket 4.x"
             " enabled?"
